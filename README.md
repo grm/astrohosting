@@ -1,5 +1,7 @@
 # Astrohosting
 
+[![Build and publish Docker image](https://github.com/grm/astrohosting/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/grm/astrohosting/actions/workflows/docker-publish.yml)
+
 Page web statique (aucun backend) pour suivre plusieurs sites d'observation
 astro : prévisions météo détaillées, carte des nuages animée, seeing /
 transparence atmosphérique, et caméra en direct par site.

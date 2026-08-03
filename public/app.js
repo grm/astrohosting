@@ -116,8 +116,9 @@ function renderCloudMap(site) {
     pressure: "",
     type: "map",
     location: "coordinates",
-    metricWind: "default",
-    metricTemp: "default",
+    metricWind: "km/h",
+    metricTemp: "°C",
+    metricRain: "mm",
     radarRange: "-1",
   });
   els.cloudMap.src = `https://embed.windy.com/embed2.html?${params.toString()}`;
@@ -152,6 +153,11 @@ async function loadWeather(site) {
       "cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,relative_humidity_2m,wind_speed_10m,temperature_2m,precipitation_probability",
     timezone: "auto",
     forecast_days: "3",
+    // Unités internationales explicites (le défaut d'Open-Meteo est déjà
+    // métrique, mais on le fixe pour éviter toute surprise).
+    temperature_unit: "celsius",
+    wind_speed_unit: "kmh",
+    precipitation_unit: "mm",
   });
   const url = `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
 
