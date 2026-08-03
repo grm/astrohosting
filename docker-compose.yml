@@ -1,0 +1,13 @@
+services:
+  astrohosting:
+    build: .
+    image: astrohosting:latest
+    container_name: astrohosting
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      # Monter sites.yaml en lecture seule permet de modifier la config des
+      # sites directement sur le serveur, sans reconstruire l'image Docker :
+      # il suffit de rafraîchir la page (le fichier est servi sans cache).
+      - ./public/sites.yaml:/usr/share/nginx/html/sites.yaml:ro

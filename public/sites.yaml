@@ -1,0 +1,67 @@
+# Liste des emplacements astro suivis par l'application.
+#
+# Champs par site :
+#   id          : identifiant unique (slug), utilisé en interne
+#   name        : nom affiché
+#   lat / lon   : coordonnées GPS (degrés décimaux)
+#   elevation_m : altitude en mètres (utile pour le seeing / la transparence)
+#   timezone    : fuseau horaire IANA (ex: "Europe/Paris")
+#   notes       : description libre affichée dans l'interface
+#   camera      : configuration de la caméra du site
+#     type      : "image" (photo statique/rafraîchie), "iframe" (page web
+#                 externe embarquée) ou "hls" (flux vidéo live .m3u8)
+#     url       : URL de la caméra (à adapter selon le site réel)
+#     refresh_seconds : (type "image" uniquement) intervalle de rafraîchissement
+
+sites:
+  - id: oukaimeden
+    name: "Oukaïmeden (Maroc)"
+    lat: 31.2061
+    lon: -7.8664
+    elevation_m: 2750
+    timezone: "Africa/Casablanca"
+    notes: >
+      Observatoire de l'Oukaïmeden, Haut Atlas marocain, à 50 km au sud de
+      Marrakech. Climat semi-désertique, environ 250 nuits claires par an.
+    camera:
+      # Caméra allsky (fisheye) des observatoires HAO/HAWK. L'image est
+      # régénérée régulièrement côté serveur ; on force le rechargement
+      # périodique côté client via refresh_seconds (contournement du cache).
+      type: image
+      url: "https://hawkobs.space/wp-content/themes/dc_theme/allsky/ImageLastFTP_AllSKY.jpg"
+      refresh_seconds: 60
+
+  - id: trevinca
+    name: "Trevinca (Espagne)"
+    lat: 42.2427
+    lon: -6.7960
+    elevation_m: 2127
+    timezone: "Europe/Madrid"
+    notes: >
+      Peña Trevinca, point culminant de la Galice, à la frontière avec la
+      Castille-et-León. Destination Starlight certifiée, ciel très noir.
+    camera:
+      # Caméra allsky "Trevinca Skies" (projet Allsky/AllskyTeam). L'URL
+      # ci-dessous pointe directement vers l'image générée (trouvée dans le
+      # code source de http://trevinca.duckdns.org:35890/allsky/, champ
+      # config.imageName), plutôt que d'embarquer toute la page.
+      # ATTENTION : cette URL est en HTTP (non HTTPS). Si cette page est
+      # déployée sur un hébergeur HTTPS (GitHub Pages, Netlify, Vercel...),
+      # le navigateur bloquera probablement cette image en "contenu mixte".
+      # Ça fonctionnera en revanche en local ou sur un hébergement HTTP.
+      type: image
+      url: "http://trevinca.duckdns.org:35890/current/tmp/image.jpg"
+      refresh_seconds: 60
+    
+  - id: orgeval
+    name: "Orgeval (France)"
+    lat: 48.9211
+    lon: 1.9764
+    elevation_m: 120
+    timezone: "Europe/Paris"
+    notes: >
+      Orgeval (78630), Yvelines, Île-de-France.
+    camera:
+      type: image
+      url: "https://example.com/webcams/orgeval/latest.jpg"  # TODO: remplacer par l'URL réelle
+      refresh_seconds: 60

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Astrohosting — Suivi astro multi-sites</title>
+<link rel="stylesheet" href="styles.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔭</text></svg>" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span class="logo">🔭</span>
+        <div>
+          <h1>Astrohosting</h1>
+          <p class="tagline">Sites d'observation</p>
+        </div>
+      </div>
+      <ul id="site-list" class="site-list">
+        <li class="site-item loading">Chargement des sites…</li>
+      </ul>
+      <p class="sidebar-footer">
+        Sites définis dans <code>sites.yaml</code>
+      </p>
+    </aside>
+
+    <main class="content">
+      <div id="empty-state" class="empty-state">
+        <p>Sélectionnez un site dans la liste pour afficher ses prévisions.</p>
+      </div>
+
+      <div id="site-view" class="site-view hidden">
+        <header class="site-header">
+          <div>
+            <h2 id="site-name">—</h2>
+            <p id="site-meta" class="site-meta"></p>
+            <p id="site-notes" class="site-notes"></p>
+          </div>
+          <div class="site-updated">
+            <span id="last-updated">—</span>
+          </div>
+        </header>
+
+        <section class="panels">
+          <div class="panel panel-weather">
+            <h3>Prévisions détaillées (nuages, vent, humidité)</h3>
+            <div id="weather-status" class="status-msg">Chargement…</div>
+            <div class="table-scroll">
+              <table id="weather-table" class="weather-table hidden">
+                <thead>
+                  <tr>
+                    <th>Jour / heure</th>
+                    <th title="Couverture nuageuse totale">☁️ Total</th>
+                    <th title="Nuages bas">⬇️ Bas</th>
+                    <th title="Nuages moyens">➡️ Moyens</th>
+                    <th title="Nuages hauts">⬆️ Hauts</th>
+                    <th title="Humidité relative à 2m">💧 Humidité</th>
+                    <th title="Vent à 10m">🌬️ Vent</th>
+                    <th title="Température à 2m">🌡️ Temp.</th>
+                    <th title="Probabilité de précipitation">🌧️</th>
+                  </tr>
+                </thead>
+                <tbody id="weather-body"></tbody>
+              </table>
+            </div>
+            <p class="source-note">Source : <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a></p>
+          </div>
+
+          <div class="panel panel-clouds">
+            <h3>Carte des nuages &amp; mouvement</h3>
+            <div class="cloud-map-wrapper">
+              <iframe
+                id="cloud-map"
+                title="Carte des nuages Windy"
+                loading="lazy"
+                src=""
+                allowfullscreen
+              ></iframe>
+            </div>
+            <p class="source-note">Source : <a href="https://www.windy.com" target="_blank" rel="noopener">Windy.com</a> — utilisez le bouton lecture pour animer le déplacement des nuages</p>
+          </div>
+        </section>
+
+        <section class="panel panel-astro">
+          <h3>Seeing &amp; transparence atmosphérique (spécial astro)</h3>
+          <div class="astro-chart-wrapper">
+            <img id="astro-chart" alt="Graphique de prévision astro 7Timer (seeing, transparence, nuages)" />
+          </div>
+          <p class="source-note">Source : <a href="https://www.7timer.info/doc.php" target="_blank" rel="noopener">7Timer! ASTRO</a> — plus l'icône de seeing est petite/bleue, meilleure est la netteté du ciel</p>
+        </section>
+
+        <section class="panel panel-camera">
+          <h3>Caméra en direct</h3>
+          <div id="camera-container" class="camera-container">
+            <p class="status-msg">Aucune caméra configurée pour ce site.</p>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>
