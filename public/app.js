@@ -152,17 +152,20 @@ function renderCloudMap(site) {
 /* ---------------- Satellite temps réel (I'm Weather, nowcast) ---------------- */
 
 function renderSatelliteMap(site) {
+  // Widget d'embed dédié (via le bouton "Share & Embed" d'imweather.com),
+  // beaucoup plus compact que l'appli complète (pas de menu/pub/panneau de
+  // calques) : juste la carte, sa légende et le curseur temporel.
   const params = new URLSearchParams({
-    model: "nowcast",
-    element: "satellite",
-    run: "latest",
-    member: "",
-    level: "",
     lat: site.lat,
     lng: site.lon,
-    z: "7",
+    z: "7.00",
+    model: "nowcast",
+    element: "satellite",
+    hideLayers: "",
+    autostart: "true",
+    interactive: "true",
   });
-  els.satelliteMap.src = `https://imweather.com/?${params.toString()}`;
+  els.satelliteMap.src = `https://imweather.com/widget/map?${params.toString()}`;
 }
 
 /* ---------------- Graphique astro (7Timer!) ---------------- */

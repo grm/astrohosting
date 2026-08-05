@@ -19,10 +19,13 @@ Tout tourne côté navigateur, aucun serveur n'est nécessaire :
   [7Timer! ASTRO](https://www.7timer.info/doc.php), affiché comme simple image
   (pas de souci CORS puisqu'il s'agit d'une balise `<img>`).
 - **Carte des nuages animée (modèle)** : widget embarqué [Windy.com](https://www.windy.com).
-- **Satellite temps réel (nowcast)** : widget embarqué [I'm Weather](https://imweather.com),
-  animation basée sur l'imagerie satellite (passé récent + courte prévision
-  extrapolée), complémentaire à la carte modèle Windy — curseur temporel en
-  bas de la carte.
+- **Satellite temps réel (nowcast)** : widget d'embed dédié [I'm Weather](https://imweather.com)
+  (`imweather.com/widget/map`, généré via le bouton "Share & Embed" de leur
+  appli — plus compact que l'appli complète), animation basée sur l'imagerie
+  satellite (passé récent + courte prévision extrapolée), en pleine largeur
+  sous la carte modèle Windy, avec lecture automatique. Un repère est affiché
+  au centre de la carte pour indiquer le site (la carte étant centrée sur ses
+  coordonnées).
 - **Instruments locaux** (optionnel, par site) : panneau à onglets pour des
   images/graphiques d'instruments locaux (capteur de nuages, moniteur de
   seeing, station météo...), voir `instruments` dans `sites.yaml` ci-dessous.

@@ -84,35 +84,34 @@
             <p class="source-note">Source : <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a></p>
           </div>
 
-          <div class="clouds-stack">
-            <div class="panel panel-clouds">
-              <h3>Carte des nuages &amp; mouvement (modèle)</h3>
-              <div class="cloud-map-wrapper">
-                <iframe
-                  id="cloud-map"
-                  title="Carte des nuages Windy"
-                  loading="lazy"
-                  src=""
-                  allowfullscreen
-                ></iframe>
-              </div>
-              <p class="source-note">Source : <a href="https://www.windy.com" target="_blank" rel="noopener">Windy.com</a> — utilisez le bouton lecture pour animer le déplacement des nuages</p>
+          <div class="panel panel-clouds">
+            <h3>Carte des nuages &amp; mouvement (modèle)</h3>
+            <div class="cloud-map-wrapper">
+              <iframe
+                id="cloud-map"
+                title="Carte des nuages Windy"
+                loading="lazy"
+                src=""
+                allowfullscreen
+              ></iframe>
             </div>
-
-            <div class="panel panel-satellite">
-              <h3>Satellite (nowcast, temps réel)</h3>
-              <div class="cloud-map-wrapper">
-                <iframe
-                  id="satellite-map"
-                  title="Imagerie satellite I'm Weather"
-                  loading="lazy"
-                  src=""
-                  allowfullscreen
-                ></iframe>
-              </div>
-              <p class="source-note">Source : <a href="https://imweather.com" target="_blank" rel="noopener">I'm Weather</a> — animation satellite avec avancée dans le temps (passé + prévision court terme), utilisez le curseur/lecture en bas de la carte</p>
-            </div>
+            <p class="source-note">Source : <a href="https://www.windy.com" target="_blank" rel="noopener">Windy.com</a> — utilisez le bouton lecture pour animer le déplacement des nuages</p>
           </div>
+        </section>
+
+        <section class="panel panel-satellite">
+          <h3>Satellite (nowcast, temps réel)</h3>
+          <div class="satellite-map-wrapper">
+            <iframe
+              id="satellite-map"
+              title="Imagerie satellite I'm Weather"
+              loading="lazy"
+              src=""
+              allowfullscreen
+            ></iframe>
+            <div class="satellite-marker" title="Site d'observation" aria-hidden="true"></div>
+          </div>
+          <p class="source-note">Source : <a href="https://imweather.com" target="_blank" rel="noopener">I'm Weather</a> — animation satellite avec avancée dans le temps (passé + prévision court terme), utilisez le curseur/lecture en bas de la carte. Le repère <span class="legend-dot"></span> indique le site d'observation (centre de la carte).</p>
         </section>
 
         <section class="panel panel-astro">
