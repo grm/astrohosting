@@ -7,7 +7,10 @@
 #   elevation_m : altitude en mètres (utile pour le seeing / la transparence)
 #   timezone    : fuseau horaire IANA (ex: "Europe/Paris")
 #   notes       : description libre affichée dans l'interface
-#   camera      : configuration de la caméra du site
+#   camera      : configuration d'une caméra unique pour le site (raccourci)
+#   cameras     : liste de plusieurs caméras pour le site (affichées sous
+#                 forme d'onglets) — utiliser "camera" OU "cameras", pas les deux
+#     name      : nom affiché dans l'onglet (optionnel si une seule caméra)
 #     type      : "image" (photo statique/rafraîchie), "iframe" (page web
 #                 externe embarquée) ou "hls" (flux vidéo live .m3u8)
 #     url       : URL de la caméra (à adapter selon le site réel)
@@ -23,13 +26,22 @@ sites:
     notes: >
       Observatoire de l'Oukaïmeden, Haut Atlas marocain, à 50 km au sud de
       Marrakech. Climat semi-désertique, environ 250 nuits claires par an.
-    camera:
-      # Caméra allsky (fisheye) des observatoires HAO/HAWK. L'image est
-      # régénérée régulièrement côté serveur ; on force le rechargement
-      # périodique côté client via refresh_seconds (contournement du cache).
-      type: image
-      url: "https://hawkobs.space/wp-content/themes/dc_theme/allsky/ImageLastFTP_AllSKY.jpg"
-      refresh_seconds: 60
+    cameras:
+      - name: "HAO / HAWK"
+        # Caméra allsky (fisheye) des observatoires HAO/HAWK. L'image est
+        # régénérée régulièrement côté serveur ; on force le rechargement
+        # périodique côté client via refresh_seconds (contournement du cache).
+        type: image
+        url: "https://hawkobs.space/wp-content/themes/dc_theme/allsky/ImageLastFTP_AllSKY.jpg"
+        refresh_seconds: 60
+      - name: "Astrosurf (R. Rinner)"
+        # Caméra allsky de Rémi Rinner (astrosurf.com), superbe rendu de la
+        # Voie lactée. ATTENTION : URL en HTTP (non HTTPS, pas de variante
+        # HTTPS disponible sur ce serveur) — même limitation de "contenu
+        # mixte" que la caméra de Trevinca si déployé en HTTPS (voir plus bas).
+        type: image
+        url: "http://www.astrosurf.com/rinner/oukaimeden/Data/ImageLastFTP_AllSKY.jpg"
+        refresh_seconds: 60
 
   - id: trevinca
     name: "Trevinca (Espagne)"

@@ -26,6 +26,7 @@ const els = {
   weatherBody: document.getElementById("weather-body"),
   cloudMap: document.getElementById("cloud-map"),
   astroChart: document.getElementById("astro-chart"),
+  cameraTabs: document.getElementById("camera-tabs"),
   cameraContainer: document.getElementById("camera-container"),
   sunTimesLocalLabel: document.getElementById("sun-times-local-label"),
   sunTimesLocal: document.getElementById("sun-times-local"),
@@ -295,8 +296,39 @@ function formatDateTime(date) {
 
 /* ---------------- Caméra ---------------- */
 
-function renderCamera(site) {
-  const cam = site.camera;
+// Un site peut définir "camera" (objet unique) ou "cameras" (liste, affichée
+// sous forme d'onglets si plus d'une caméra) — on normalise en liste ici.
+function getCameras(site) {
+  if (Array.isArray(site.cameras)) return site.cameras;
+  if (site.camera) return [site.camera];
+  return [];
+}
+
+function renderCamera(site, cameraIndex = 0) {
+  const cameras = getCameras(site);
+  state.activeCameraIndex = cameraIndex;
+
+  if (cameras.length > 1) {
+    els.cameraTabs.classList.remove("hidden");
+    els.cameraTabs.innerHTML = "";
+    cameras.forEach((cam, i) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "camera-tab" + (i === cameraIndex ? " active" : "");
+      btn.textContent = cam.name || `Caméra ${i + 1}`;
+      btn.addEventListener("click", () => renderCamera(site, i));
+      els.cameraTabs.appendChild(btn);
+    });
+  } else {
+    els.cameraTabs.classList.add("hidden");
+    els.cameraTabs.innerHTML = "";
+  }
+
+  renderCameraMedia(cameras[cameraIndex], site);
+}
+
+function renderCameraMedia(cam, site) {
+  clearCameraInterval();
   els.cameraContainer.innerHTML = "";
 
   if (!cam || !cam.url) {
@@ -343,7 +375,6 @@ function renderCamera(site) {
   };
   setSrc();
   els.cameraContainer.appendChild(img);
-  clearCameraInterval();
   state.cameraInterval = setInterval(setSrc, refreshSeconds * 1000);
 }
 

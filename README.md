@@ -20,7 +20,8 @@ Tout tourne côté navigateur, aucun serveur n'est nécessaire :
   (pas de souci CORS puisqu'il s'agit d'une balise `<img>`).
 - **Carte des nuages animée** : widget embarqué [Windy.com](https://www.windy.com).
 - **Caméra en direct** : rendue selon le `type` défini par site dans `sites.yaml`
-  (`image`, `iframe` ou `hls`).
+  (`image`, `iframe` ou `hls`). Un site peut définir plusieurs caméras
+  (`cameras: [...]`), affichées sous forme d'onglets à cliquer.
 
 ## Lancer en local
 
@@ -84,7 +85,8 @@ docker compose up -d --build
 page dans le navigateur, sans reconstruire l'image.
 
 **Pourquoi c'est utile ici en particulier** : certaines caméras all-sky
-publiques (comme celle de Trevinca) ne sont exposées qu'en HTTP, pas HTTPS.
+publiques (comme celle de Trevinca, ou la caméra "Astrosurf" d'Oukaïmeden) ne
+sont exposées qu'en HTTP, pas HTTPS.
 Si le site est servi en HTTPS (GitHub Pages, Netlify...), le navigateur
 bloque le chargement de ces images en "contenu mixte". En auto-hébergeant le
 site en HTTP sur ton propre serveur, ce problème disparaît : une page HTTP
@@ -108,10 +110,25 @@ sites:
     timezone: "Europe/Paris"    # fuseau horaire IANA (optionnel, informatif)
     notes: >
       Description libre affichée dans l'interface.
-    camera:
+    camera:                      # une seule caméra pour ce site
       type: image               # "image", "iframe" ou "hls"
       url: "https://.../snapshot.jpg"
       refresh_seconds: 60        # (type "image" uniquement) intervalle de rafraîchissement
+```
+
+Pour afficher **plusieurs caméras** sur un même site (sélectionnables via des
+onglets), utilise `cameras` (liste) à la place de `camera` :
+
+```yaml
+    cameras:
+      - name: "Allsky nord"       # nom affiché dans l'onglet
+        type: image
+        url: "https://.../cam1.jpg"
+        refresh_seconds: 60
+      - name: "Allsky sud"
+        type: image
+        url: "https://.../cam2.jpg"
+        refresh_seconds: 60
 ```
 
 Types de caméra supportés :
@@ -122,9 +139,10 @@ Types de caméra supportés :
 | `iframe` | URL d'une page web externe (ex: page publique d'une webcam), embarquée en `<iframe>` |
 | `hls`    | URL d'un flux vidéo live `.m3u8` (HLS), lu via `hls.js`                |
 
-Les 3 sites présents par défaut (`Oukaïmeden` au Maroc, `Trevinca` en Espagne,
-`Orgeval` en France) ont des coordonnées réelles mais des URLs de caméra
-factices (`example.com`) — à remplacer par tes propres URLs.
+Les 3 sites présents par défaut ont des coordonnées réelles : `Oukaïmeden`
+(Maroc, 2 caméras allsky publiques) et `Trevinca` (Espagne, 1 caméra allsky
+publique) ont de vraies URLs de caméra ; `Orgeval` (France) a une URL
+factice (`example.com`) à remplacer par la tienne.
 
 ## Notes
 
