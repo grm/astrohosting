@@ -10,10 +10,13 @@
 #   camera      : configuration d'une caméra unique pour le site (raccourci)
 #   cameras     : liste de plusieurs caméras pour le site (affichées sous
 #                 forme d'onglets) — utiliser "camera" OU "cameras", pas les deux
-#     name      : nom affiché dans l'onglet (optionnel si une seule caméra)
+#   instrument / instruments : même principe que camera/cameras, mais pour des
+#                 instruments locaux (capteur de nuages, moniteur de seeing,
+#                 station météo...) affichés dans un panneau séparé
+#     name      : nom affiché dans l'onglet (optionnel si un seul élément)
 #     type      : "image" (photo statique/rafraîchie), "iframe" (page web
 #                 externe embarquée) ou "hls" (flux vidéo live .m3u8)
-#     url       : URL de la caméra (à adapter selon le site réel)
+#     url       : URL de la caméra/de l'instrument (à adapter selon le site réel)
 #     refresh_seconds : (type "image" uniquement) intervalle de rafraîchissement
 
 sites:
@@ -42,6 +45,27 @@ sites:
         type: image
         url: "http://www.astrosurf.com/rinner/oukaimeden/Data/ImageLastFTP_AllSKY.jpg"
         refresh_seconds: 60
+    instruments:
+      # Instruments locaux de la station d'Oukaïmeden de R. Rinner
+      # (astrosurf.com/rinner/MOSS-live.htm). Comme les caméras ci-dessus,
+      # ces URLs sont en HTTP uniquement (mêmes limitations de "contenu
+      # mixte" en HTTPS, voir plus bas).
+      - name: "Nuages (capteur local)"
+        # Graphique de couverture nuageuse + température locale sur les
+        # dernières heures (Cloudsensor + Cloud Sensor Graph) : donne une
+        # tendance dans le temps, complémentaire à la prévision Windy/Open-Meteo.
+        type: image
+        url: "http://www.astrosurf.com/rinner/oukaimeden/Data/chart.gif"
+        refresh_seconds: 300
+      - name: "Seeing (Cyclope)"
+        # Moniteur de seeing "Cyclope" (Alcor System).
+        type: image
+        url: "http://www.astrosurf.com/rinner/oukaimeden/Data/SeeingScrCopy.jpg"
+        refresh_seconds: 300
+      - name: "Station météo"
+        type: image
+        url: "http://www.astrosurf.com/rinner/oukaimeden/Data/meteo.jpg"
+        refresh_seconds: 300
 
   - id: trevinca
     name: "Trevinca (Espagne)"

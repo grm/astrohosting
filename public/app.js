@@ -25,7 +25,11 @@ const els = {
   weatherTable: document.getElementById("weather-table"),
   weatherBody: document.getElementById("weather-body"),
   cloudMap: document.getElementById("cloud-map"),
+  satelliteMap: document.getElementById("satellite-map"),
   astroChart: document.getElementById("astro-chart"),
+  instrumentsSection: document.getElementById("instruments-section"),
+  instrumentTabs: document.getElementById("instrument-tabs"),
+  instrumentContainer: document.getElementById("instrument-container"),
   cameraTabs: document.getElementById("camera-tabs"),
   cameraContainer: document.getElementById("camera-container"),
   sunTimesLocalLabel: document.getElementById("sun-times-local-label"),
@@ -104,8 +108,15 @@ function selectSite(siteId) {
   els.sunTimesBrowser.textContent = "…";
 
   renderCloudMap(site);
+  renderSatelliteMap(site);
   renderAstroChart(site);
-  renderCamera(site);
+
+  const instruments = getInstruments(site);
+  els.instrumentsSection.classList.toggle("hidden", instruments.length === 0);
+  instrumentPanel.render(instruments, site, "Instrument");
+
+  cameraPanel.render(getCameras(site), site, "Caméra");
+
   loadWeather(site);
 }
 
@@ -136,6 +147,22 @@ function renderCloudMap(site) {
     radarRange: "-1",
   });
   els.cloudMap.src = `https://embed.windy.com/embed2.html?${params.toString()}`;
+}
+
+/* ---------------- Satellite temps réel (I'm Weather, nowcast) ---------------- */
+
+function renderSatelliteMap(site) {
+  const params = new URLSearchParams({
+    model: "nowcast",
+    element: "satellite",
+    run: "latest",
+    member: "",
+    level: "",
+    lat: site.lat,
+    lng: site.lon,
+    z: "7",
+  });
+  els.satelliteMap.src = `https://imweather.com/?${params.toString()}`;
 }
 
 /* ---------------- Graphique astro (7Timer!) ---------------- */
@@ -294,96 +321,128 @@ function formatDateTime(date) {
   });
 }
 
-/* ---------------- Caméra ---------------- */
+/* ---------------- Caméras & instruments (panneaux à onglets) ---------------- */
 
-// Un site peut définir "camera" (objet unique) ou "cameras" (liste, affichée
-// sous forme d'onglets si plus d'une caméra) — on normalise en liste ici.
+// Un site peut définir "camera"/"instrument" (objet unique) ou
+// "cameras"/"instruments" (liste, affichée sous forme d'onglets si plus d'un
+// élément) — on normalise en liste ici.
 function getCameras(site) {
   if (Array.isArray(site.cameras)) return site.cameras;
   if (site.camera) return [site.camera];
   return [];
 }
 
-function renderCamera(site, cameraIndex = 0) {
-  const cameras = getCameras(site);
-  state.activeCameraIndex = cameraIndex;
-
-  if (cameras.length > 1) {
-    els.cameraTabs.classList.remove("hidden");
-    els.cameraTabs.innerHTML = "";
-    cameras.forEach((cam, i) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "camera-tab" + (i === cameraIndex ? " active" : "");
-      btn.textContent = cam.name || `Caméra ${i + 1}`;
-      btn.addEventListener("click", () => renderCamera(site, i));
-      els.cameraTabs.appendChild(btn);
-    });
-  } else {
-    els.cameraTabs.classList.add("hidden");
-    els.cameraTabs.innerHTML = "";
-  }
-
-  renderCameraMedia(cameras[cameraIndex], site);
+function getInstruments(site) {
+  if (Array.isArray(site.instruments)) return site.instruments;
+  if (site.instrument) return [site.instrument];
+  return [];
 }
 
-function renderCameraMedia(cam, site) {
-  clearCameraInterval();
-  els.cameraContainer.innerHTML = "";
+// Fabrique un panneau à onglets (utilisé pour les caméras et les instruments
+// locaux) : chaque entrée est une image rafraîchie, une iframe ou un flux
+// HLS. `tabsEl`/`containerEl` sont les éléments DOM cibles.
+function createTabbedMediaPanel(tabsEl, containerEl, emptyMessage) {
+  let refreshInterval = null;
 
-  if (!cam || !cam.url) {
-    els.cameraContainer.innerHTML = `<p class="status-msg">Aucune caméra configurée pour ce site.</p>`;
-    return;
-  }
-
-  if (cam.type === "iframe") {
-    const iframe = document.createElement("iframe");
-    iframe.src = cam.url;
-    iframe.title = `Caméra ${site.name}`;
-    iframe.allowFullscreen = true;
-    els.cameraContainer.appendChild(iframe);
-    return;
-  }
-
-  if (cam.type === "hls") {
-    const video = document.createElement("video");
-    video.controls = true;
-    video.autoplay = true;
-    video.muted = true;
-    video.playsInline = true;
-    els.cameraContainer.appendChild(video);
-
-    if (window.Hls && Hls.isSupported()) {
-      const hls = new Hls();
-      hls.loadSource(cam.url);
-      hls.attachMedia(video);
-    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = cam.url;
-    } else {
-      els.cameraContainer.innerHTML = `<p class="status-msg">Flux HLS non supporté par ce navigateur.</p>`;
+  function clearRefreshInterval() {
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+      refreshInterval = null;
     }
-    return;
   }
 
-  // Par défaut : type "image" (snapshot statique/rafraîchi périodiquement)
-  const img = document.createElement("img");
-  img.alt = `Caméra ${site.name}`;
-  const refreshSeconds = cam.refresh_seconds || 60;
-  const setSrc = () => {
-    const sep = cam.url.includes("?") ? "&" : "?";
-    img.src = `${cam.url}${sep}t=${Date.now()}`;
-  };
-  setSrc();
-  els.cameraContainer.appendChild(img);
-  state.cameraInterval = setInterval(setSrc, refreshSeconds * 1000);
+  function render(items, site, labelPrefix, activeIndex = 0) {
+    tabsEl.innerHTML = "";
+
+    if (items.length === 0) {
+      tabsEl.classList.add("hidden");
+      clearRefreshInterval();
+      containerEl.innerHTML = `<p class="status-msg">${emptyMessage}</p>`;
+      return;
+    }
+
+    if (items.length > 1) {
+      tabsEl.classList.remove("hidden");
+      items.forEach((item, i) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "camera-tab" + (i === activeIndex ? " active" : "");
+        btn.textContent = item.name || `${labelPrefix} ${i + 1}`;
+        btn.addEventListener("click", () => render(items, site, labelPrefix, i));
+        tabsEl.appendChild(btn);
+      });
+    } else {
+      tabsEl.classList.add("hidden");
+    }
+
+    renderMedia(items[activeIndex], site);
+  }
+
+  function renderMedia(item, site) {
+    clearRefreshInterval();
+    containerEl.innerHTML = "";
+
+    if (!item || !item.url) {
+      containerEl.innerHTML = `<p class="status-msg">${emptyMessage}</p>`;
+      return;
+    }
+
+    if (item.type === "iframe") {
+      const iframe = document.createElement("iframe");
+      iframe.src = item.url;
+      iframe.title = item.name || site.name;
+      iframe.allowFullscreen = true;
+      containerEl.appendChild(iframe);
+      return;
+    }
+
+    if (item.type === "hls") {
+      const video = document.createElement("video");
+      video.controls = true;
+      video.autoplay = true;
+      video.muted = true;
+      video.playsInline = true;
+      containerEl.appendChild(video);
+
+      if (window.Hls && Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(item.url);
+        hls.attachMedia(video);
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = item.url;
+      } else {
+        containerEl.innerHTML = `<p class="status-msg">Flux HLS non supporté par ce navigateur.</p>`;
+      }
+      return;
+    }
+
+    // Par défaut : type "image" (snapshot statique/rafraîchi périodiquement)
+    const img = document.createElement("img");
+    img.alt = item.name || site.name;
+    const refreshSeconds = item.refresh_seconds || 60;
+    const setSrc = () => {
+      const sep = item.url.includes("?") ? "&" : "?";
+      img.src = `${item.url}${sep}t=${Date.now()}`;
+    };
+    setSrc();
+    containerEl.appendChild(img);
+    refreshInterval = setInterval(setSrc, refreshSeconds * 1000);
+  }
+
+  return { render };
 }
 
-function clearCameraInterval() {
-  if (state.cameraInterval) {
-    clearInterval(state.cameraInterval);
-    state.cameraInterval = null;
-  }
-}
+const cameraPanel = createTabbedMediaPanel(
+  els.cameraTabs,
+  els.cameraContainer,
+  "Aucune caméra configurée pour ce site."
+);
+
+const instrumentPanel = createTabbedMediaPanel(
+  els.instrumentTabs,
+  els.instrumentContainer,
+  "Aucun instrument local configuré pour ce site."
+);
 
 /* ---------------- Utils ---------------- */
 

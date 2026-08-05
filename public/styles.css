@@ -230,6 +230,13 @@ body {
   min-width: 0;
 }
 
+.clouds-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
 @media (max-width: 980px) {
   .panels {
     grid-template-columns: 1fr;
@@ -367,8 +374,13 @@ body {
   max-width: 100%;
 }
 
+.panel-instruments,
 .panel-camera {
   margin-top: 0;
+}
+
+.panel-instruments {
+  margin-bottom: 20px;
 }
 
 .camera-tabs {

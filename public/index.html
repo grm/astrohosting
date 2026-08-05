@@ -84,18 +84,34 @@
             <p class="source-note">Source : <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a></p>
           </div>
 
-          <div class="panel panel-clouds">
-            <h3>Carte des nuages &amp; mouvement</h3>
-            <div class="cloud-map-wrapper">
-              <iframe
-                id="cloud-map"
-                title="Carte des nuages Windy"
-                loading="lazy"
-                src=""
-                allowfullscreen
-              ></iframe>
+          <div class="clouds-stack">
+            <div class="panel panel-clouds">
+              <h3>Carte des nuages &amp; mouvement (modèle)</h3>
+              <div class="cloud-map-wrapper">
+                <iframe
+                  id="cloud-map"
+                  title="Carte des nuages Windy"
+                  loading="lazy"
+                  src=""
+                  allowfullscreen
+                ></iframe>
+              </div>
+              <p class="source-note">Source : <a href="https://www.windy.com" target="_blank" rel="noopener">Windy.com</a> — utilisez le bouton lecture pour animer le déplacement des nuages</p>
             </div>
-            <p class="source-note">Source : <a href="https://www.windy.com" target="_blank" rel="noopener">Windy.com</a> — utilisez le bouton lecture pour animer le déplacement des nuages</p>
+
+            <div class="panel panel-satellite">
+              <h3>Satellite (nowcast, temps réel)</h3>
+              <div class="cloud-map-wrapper">
+                <iframe
+                  id="satellite-map"
+                  title="Imagerie satellite I'm Weather"
+                  loading="lazy"
+                  src=""
+                  allowfullscreen
+                ></iframe>
+              </div>
+              <p class="source-note">Source : <a href="https://imweather.com" target="_blank" rel="noopener">I'm Weather</a> — animation satellite avec avancée dans le temps (passé + prévision court terme), utilisez le curseur/lecture en bas de la carte</p>
+            </div>
           </div>
         </section>
 
@@ -105,6 +121,12 @@
             <img id="astro-chart" alt="Graphique de prévision astro 7Timer (seeing, transparence, nuages)" />
           </div>
           <p class="source-note">Source : <a href="https://www.7timer.info/doc.php" target="_blank" rel="noopener">7Timer! ASTRO</a> — plus l'icône de seeing est petite/bleue, meilleure est la netteté du ciel</p>
+        </section>
+
+        <section id="instruments-section" class="panel panel-instruments hidden">
+          <h3>Instruments locaux (avancée dans le temps)</h3>
+          <div id="instrument-tabs" class="camera-tabs hidden"></div>
+          <div id="instrument-container" class="camera-container"></div>
         </section>
 
         <section class="panel panel-camera">

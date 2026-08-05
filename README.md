@@ -18,7 +18,14 @@ Tout tourne côté navigateur, aucun serveur n'est nécessaire :
 - **Seeing / transparence atmosphérique** : graphique officiel du produit
   [7Timer! ASTRO](https://www.7timer.info/doc.php), affiché comme simple image
   (pas de souci CORS puisqu'il s'agit d'une balise `<img>`).
-- **Carte des nuages animée** : widget embarqué [Windy.com](https://www.windy.com).
+- **Carte des nuages animée (modèle)** : widget embarqué [Windy.com](https://www.windy.com).
+- **Satellite temps réel (nowcast)** : widget embarqué [I'm Weather](https://imweather.com),
+  animation basée sur l'imagerie satellite (passé récent + courte prévision
+  extrapolée), complémentaire à la carte modèle Windy — curseur temporel en
+  bas de la carte.
+- **Instruments locaux** (optionnel, par site) : panneau à onglets pour des
+  images/graphiques d'instruments locaux (capteur de nuages, moniteur de
+  seeing, station météo...), voir `instruments` dans `sites.yaml` ci-dessous.
 - **Caméra en direct** : rendue selon le `type` défini par site dans `sites.yaml`
   (`image`, `iframe` ou `hls`). Un site peut définir plusieurs caméras
   (`cameras: [...]`), affichées sous forme d'onglets à cliquer.
@@ -144,9 +151,35 @@ Les 3 sites présents par défaut ont des coordonnées réelles : `Oukaïmeden`
 publique) ont de vraies URLs de caméra ; `Orgeval` (France) a une URL
 factice (`example.com`) à remplacer par la tienne.
 
+### Instruments locaux (`instrument` / `instruments`)
+
+Certains sites publient en plus des instruments de mesure locaux (capteur de
+nuages, moniteur de seeing, station météo...) sous forme d'images/graphiques.
+Ils utilisent exactement le même format que `camera`/`cameras` (mêmes `type`
+possibles), mais s'affichent dans un panneau séparé "Instruments locaux". Le
+panneau (et son titre) est masqué automatiquement si le site n'en définit pas :
+
+```yaml
+    instruments:
+      - name: "Nuages (capteur local)"
+        type: image
+        url: "https://.../chart.gif"
+        refresh_seconds: 300
+      - name: "Station météo"
+        type: image
+        url: "https://.../meteo.jpg"
+        refresh_seconds: 300
+```
+
+`Oukaïmeden` en fournit un exemple concret (capteur de nuages, moniteur de
+seeing "Cyclope" et station météo de la station [MOSS-live](http://www.astrosurf.com/rinner/MOSS-live.htm) de R. Rinner).
+
 ## Notes
 
-- Open-Meteo et Windy sont utilisés dans le respect de leurs conditions
-  d'utilisation gratuite (usage non commercial / raisonnable).
+- Open-Meteo, Windy et I'm Weather sont utilisés dans le respect de leurs
+  conditions d'utilisation gratuite (usage non commercial / raisonnable).
 - 7Timer! est un service gratuit sans clé API, maintenu par le Shanghai
   Astronomical Observatory ; merci de ne pas l'utiliser à des fins commerciales.
+- Les instruments locaux d'Oukaïmeden par défaut proviennent de la station
+  MOSS de R. Rinner (astrosurf.com), même limitation "contenu mixte" HTTP
+  que les caméras (voir section Docker ci-dessus).
