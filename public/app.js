@@ -27,7 +27,14 @@ const els = {
   cloudMap: document.getElementById("cloud-map"),
   astroChart: document.getElementById("astro-chart"),
   cameraContainer: document.getElementById("camera-container"),
+  sunTimesLocalLabel: document.getElementById("sun-times-local-label"),
+  sunTimesLocal: document.getElementById("sun-times-local"),
+  sunTimesBrowserLabel: document.getElementById("sun-times-browser-label"),
+  sunTimesBrowser: document.getElementById("sun-times-browser"),
 };
+
+const BROWSER_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
+els.sunTimesBrowserLabel.textContent = `Lever / coucher (votre heure – ${BROWSER_TIMEZONE})`;
 
 init();
 
@@ -88,6 +95,12 @@ function selectSite(siteId) {
   }${site.timezone ? ` · ${site.timezone}` : ""}`;
   els.siteNotes.textContent = site.notes ? site.notes.trim() : "";
   els.lastUpdated.textContent = "";
+
+  els.sunTimesLocalLabel.textContent = `Lever / coucher (heure du site${
+    site.timezone ? ` – ${site.timezone}` : ""
+  })`;
+  els.sunTimesLocal.textContent = "…";
+  els.sunTimesBrowser.textContent = "…";
 
   renderCloudMap(site);
   renderAstroChart(site);
@@ -151,6 +164,7 @@ async function loadWeather(site) {
     longitude: site.lon,
     hourly:
       "cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,relative_humidity_2m,wind_speed_10m,temperature_2m,precipitation_probability",
+    daily: "sunrise,sunset",
     timezone: "auto",
     forecast_days: "3",
     // Unités internationales explicites (le défaut d'Open-Meteo est déjà
@@ -166,6 +180,7 @@ async function loadWeather(site) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     renderWeatherTable(data);
+    renderSunTimes(data);
     els.lastUpdated.textContent = `Mis à jour à ${new Date().toLocaleTimeString(
       "fr-FR"
     )}`;
@@ -175,7 +190,48 @@ async function loadWeather(site) {
     els.weatherStatus.textContent = `Erreur de chargement des prévisions : ${String(
       err.message || err
     )}`;
+    els.sunTimesLocal.textContent = "Indisponible";
+    els.sunTimesBrowser.textContent = "Indisponible";
   }
+}
+
+/* ---------------- Lever / coucher du soleil ---------------- */
+
+function renderSunTimes(data) {
+  const daily = data.daily;
+  if (!daily || !daily.sunrise?.length || !daily.sunset?.length) {
+    els.sunTimesLocal.textContent = "Indisponible";
+    els.sunTimesBrowser.textContent = "Indisponible";
+    return;
+  }
+
+  // Open-Meteo (avec timezone=auto) renvoie des heures "murales" locales au
+  // site, sans indicatif de fuseau (ex: "2026-08-05T06:32"). On les affiche
+  // telles quelles pour la colonne "heure du site", et on les convertit en
+  // un instant UTC réel (via utc_offset_seconds) pour les reformater dans le
+  // fuseau horaire du navigateur de l'utilisateur.
+  const utcOffsetSeconds = data.utc_offset_seconds || 0;
+  const sunriseLocalStr = daily.sunrise[0];
+  const sunsetLocalStr = daily.sunset[0];
+
+  els.sunTimesLocal.textContent = `${extractTime(sunriseLocalStr)} → ${extractTime(sunsetLocalStr)}`;
+
+  const sunriseUtc = localWallTimeToDate(sunriseLocalStr, utcOffsetSeconds);
+  const sunsetUtc = localWallTimeToDate(sunsetLocalStr, utcOffsetSeconds);
+  els.sunTimesBrowser.textContent = `${formatTimeOnly(sunriseUtc)} → ${formatTimeOnly(sunsetUtc)}`;
+}
+
+function extractTime(isoLocalString) {
+  return isoLocalString.split("T")[1] || isoLocalString;
+}
+
+function localWallTimeToDate(isoLocalString, utcOffsetSeconds) {
+  const pretendUtcMs = Date.parse(`${isoLocalString}Z`);
+  return new Date(pretendUtcMs - utcOffsetSeconds * 1000);
+}
+
+function formatTimeOnly(date) {
+  return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
 function renderWeatherTable(data) {

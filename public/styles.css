@@ -175,6 +175,49 @@ body {
   white-space: nowrap;
 }
 
+.sun-times {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.sun-time-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  flex: 1;
+  min-width: 220px;
+}
+
+.sun-time-icon {
+  font-size: 22px;
+}
+
+.sun-time-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sun-time-text strong {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.sun-time-text span {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
 .panels {
   display: grid;
   grid-template-columns: 1.3fr 1fr;
