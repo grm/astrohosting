@@ -18,6 +18,10 @@
 #                 externe embarquée) ou "hls" (flux vidéo live .m3u8)
 #     url       : URL de la caméra/de l'instrument (à adapter selon le site réel)
 #     refresh_seconds : (type "image" uniquement) intervalle de rafraîchissement
+#   owlnet      : station OWLNET (température, humidité, cloud, vent + historique)
+#     obs_id    : identifiant d'observatoire OWLNET (Oukaïmeden = 2)
+#     refresh_seconds : intervalle de rafraîchissement (défaut 60)
+#     source_url : lien affiché vers la page OWLNET (optionnel)
 
 sites:
   - id: oukaimeden
@@ -45,20 +49,23 @@ sites:
         type: image
         url: "http://www.astrosurf.com/rinner/oukaimeden/Data/ImageLastFTP_AllSKY.jpg"
         refresh_seconds: 60
+    # Station OWLNET (KASI) : premier onglet des instruments (température,
+    # humidité, cloudhood, vent + historique). Relais via le proxy Nginx
+    # /owlnet/ (CORS bloqué en appel direct). Les graphes Rinner restent
+    # disponibles dans les onglets suivants.
+    owlnet:
+      obs_id: 2
+      refresh_seconds: 60
+      source_url: "https://owlnet.kasi.re.kr/owlmar_oukaimeden"
     instruments:
       # Instruments locaux de la station d'Oukaïmeden de R. Rinner
-      # (astrosurf.com/rinner/MOSS-live.htm). Comme les caméras ci-dessus,
-      # ces URLs sont en HTTP uniquement (mêmes limitations de "contenu
-      # mixte" en HTTPS, voir plus bas).
+      # (astrosurf.com/rinner/MOSS-live.htm). URLs en HTTP uniquement
+      # (mêmes limitations de "contenu mixte" en HTTPS, voir plus bas).
       - name: "Nuages (capteur local)"
-        # Graphique de couverture nuageuse + température locale sur les
-        # dernières heures (Cloudsensor + Cloud Sensor Graph) : donne une
-        # tendance dans le temps, complémentaire à la prévision Windy/Open-Meteo.
         type: image
         url: "http://www.astrosurf.com/rinner/oukaimeden/Data/chart.gif"
         refresh_seconds: 300
       - name: "Seeing (Cyclope)"
-        # Moniteur de seeing "Cyclope" (Alcor System).
         type: image
         url: "http://www.astrosurf.com/rinner/oukaimeden/Data/SeeingScrCopy.jpg"
         refresh_seconds: 300

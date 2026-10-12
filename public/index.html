@@ -123,8 +123,25 @@
         </section>
 
         <section id="instruments-section" class="panel panel-instruments hidden">
-          <h3>Instruments locaux (avancée dans le temps)</h3>
+          <div class="owlnet-header">
+            <h3>Instruments locaux (avancée dans le temps)</h3>
+            <div id="owlnet-toolbar" class="owlnet-header-meta hidden">
+              <span id="owlnet-updated" class="owlnet-updated"></span>
+              <div id="owlnet-range" class="camera-tabs owlnet-range">
+                <button type="button" class="camera-tab active" data-hours="24">24 h</button>
+                <button type="button" class="camera-tab" data-hours="168">7 j</button>
+              </div>
+            </div>
+          </div>
           <div id="instrument-tabs" class="camera-tabs hidden"></div>
+          <div id="owlnet-section" class="owlnet-embed hidden">
+            <div id="owlnet-status" class="status-msg">Chargement…</div>
+            <div id="owlnet-body" class="owlnet-body hidden">
+              <div id="owlnet-current" class="owlnet-current"></div>
+              <div id="owlnet-charts" class="owlnet-charts"></div>
+            </div>
+            <p class="source-note">Source : <a id="owlnet-source-link" href="https://owlnet.kasi.re.kr/owlmar_oukaimeden" target="_blank" rel="noopener">OWLNET / KASI</a> — station météo du site, rafraîchie automatiquement</p>
+          </div>
           <div id="instrument-container" class="camera-container"></div>
         </section>
 

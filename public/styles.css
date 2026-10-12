@@ -423,6 +423,140 @@ body {
   max-width: 100%;
 }
 
+.owlnet-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.owlnet-header h3 {
+  margin: 0;
+}
+
+.owlnet-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.owlnet-updated {
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.owlnet-range {
+  margin-bottom: 0;
+}
+
+.owlnet-embed {
+  min-width: 0;
+}
+
+.owlnet-current {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.owlnet-metric {
+  background: var(--bg-panel-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  min-width: 0;
+}
+
+.owlnet-metric-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.owlnet-metric-value {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.owlnet-metric-value.good { color: var(--good); }
+.owlnet-metric-value.mid { color: var(--mid); }
+.owlnet-metric-value.bad { color: var(--bad); }
+
+.owlnet-metric-unit {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin-left: 3px;
+}
+
+.owlnet-charts {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #0e1320;
+  overflow: hidden;
+}
+
+.owlnet-charts svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.owlnet-tooltip {
+  position: absolute;
+  z-index: 3;
+  min-width: 168px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-panel) 92%, transparent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.owlnet-tooltip[hidden] {
+  display: none;
+}
+
+.owlnet-tooltip-time {
+  color: var(--text-dim);
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+
+.owlnet-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.owlnet-tooltip-row + .owlnet-tooltip-row {
+  margin-top: 3px;
+}
+
+@media (max-width: 800px) {
+  .owlnet-current {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 .panel-instruments,
 .panel-camera {
   margin-top: 0;

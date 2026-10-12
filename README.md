@@ -29,6 +29,8 @@ Tout tourne côté navigateur, aucun serveur n'est nécessaire :
 - **Instruments locaux** (optionnel, par site) : panneau à onglets pour des
   images/graphiques d'instruments locaux (capteur de nuages, moniteur de
   seeing, station météo...), voir `instruments` dans `sites.yaml` ci-dessous.
+  Sur Oukaïmeden, le premier onglet affiche les mesures OWLNET (température,
+  humidité, cloud, vent + historique) via le proxy Nginx `/owlnet/`.
 - **Caméra en direct** : rendue selon le `type` défini par site dans `sites.yaml`
   (`image`, `iframe` ou `hls`). Un site peut définir plusieurs caméras
   (`cameras: [...]`), affichées sous forme d'onglets à cliquer.
@@ -174,8 +176,16 @@ panneau (et son titre) est masqué automatiquement si le site n'en définit pas 
         refresh_seconds: 300
 ```
 
-`Oukaïmeden` en fournit un exemple concret (capteur de nuages, moniteur de
-seeing "Cyclope" et station météo de la station [MOSS-live](http://www.astrosurf.com/rinner/MOSS-live.htm) de R. Rinner).
+`Oukaïmeden` en fournit un exemple concret : le premier onglet affiche la
+station [OWLNET](https://owlnet.kasi.re.kr/owlmar_oukaimeden) (température,
+humidité, cloud, vent + historique 24 h / 7 j), puis les graphes de la
+station [MOSS-live](http://www.astrosurf.com/rinner/MOSS-live.htm) de
+R. Rinner (capteur de nuages, seeing "Cyclope", station météo).
+
+OWLNET est configuré via `owlnet.obs_id` dans `sites.yaml`. Les données
+passent par le relais Nginx `/owlnet/` (l'API KASI n'autorise pas CORS) :
+il faut donc servir le site via Docker / Nginx, pas via
+`python -m http.server`.
 
 ## Notes
 

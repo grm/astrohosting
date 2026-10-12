@@ -1,4 +1,4 @@
-/* Astrohosting — logique frontend, 100% statique (aucun backend).
+/* Astrohosting — logique frontend, 100% statique (aucun backend applicatif).
  *
  * - Les sites sont définis dans sites.yaml (chargé et parsé ici avec js-yaml).
  * - Les prévisions détaillées (nuages par altitude, vent, humidité) viennent
@@ -6,6 +6,8 @@
  * - Le seeing / la transparence atmosphérique viennent du graphique officiel
  *   7Timer! ASTRO, intégré comme simple image (pas de souci CORS pour un <img>).
  * - La carte des nuages est le widget embarqué Windy.
+ * - Les mesures OWLNET passent par le proxy Nginx /owlnet/ (l'API KASI
+ *   n'autorise pas CORS).
  */
 
 const state = {
@@ -27,6 +29,15 @@ const els = {
   cloudMap: document.getElementById("cloud-map"),
   satelliteMap: document.getElementById("satellite-map"),
   astroChart: document.getElementById("astro-chart"),
+  owlnetSection: document.getElementById("owlnet-section"),
+  owlnetStatus: document.getElementById("owlnet-status"),
+  owlnetBody: document.getElementById("owlnet-body"),
+  owlnetCurrent: document.getElementById("owlnet-current"),
+  owlnetCharts: document.getElementById("owlnet-charts"),
+  owlnetUpdated: document.getElementById("owlnet-updated"),
+  owlnetRange: document.getElementById("owlnet-range"),
+  owlnetToolbar: document.getElementById("owlnet-toolbar"),
+  owlnetSourceLink: document.getElementById("owlnet-source-link"),
   instrumentsSection: document.getElementById("instruments-section"),
   instrumentTabs: document.getElementById("instrument-tabs"),
   instrumentContainer: document.getElementById("instrument-container"),
@@ -110,10 +121,8 @@ function selectSite(siteId) {
   renderCloudMap(site);
   renderSatelliteMap(site);
   renderAstroChart(site);
-
-  const instruments = getInstruments(site);
-  els.instrumentsSection.classList.toggle("hidden", instruments.length === 0);
-  instrumentPanel.render(instruments, site, "Instrument");
+  loadOwlnet(site);
+  renderInstrumentPanel(site);
 
   cameraPanel.render(getCameras(site), site, "Caméra");
 
@@ -324,7 +333,497 @@ function formatDateTime(date) {
   });
 }
 
-/* ---------------- Caméras & instruments (panneaux à onglets) ---------------- */
+/* ---------------- Station OWLNET (mesures locales + historique) ---------------- */
+
+const OWLNET_METRICS = [
+  {
+    key: "t",
+    list: "t_list",
+    label: "Température",
+    unit: "°C",
+    color: "#7c9cff",
+    decimals: 1,
+    classify: classifyOwlnetTemp,
+  },
+  {
+    key: "h",
+    list: "h_list",
+    label: "Humidité",
+    unit: "%",
+    color: "#5ec8d8",
+    decimals: 1,
+    yMin: 0,
+    yMax: 100,
+    classify: classifyOwlnetHumidity,
+  },
+  {
+    key: "c",
+    list: "c_list",
+    label: "Cloud",
+    unit: "",
+    color: "#b49cff",
+    decimals: 1,
+    classify: classifyOwlnetCloud,
+  },
+  {
+    key: "w",
+    list: "w_list",
+    label: "Vent",
+    unit: "m/s",
+    color: "#52c77a",
+    decimals: 1,
+    yMin: 0,
+    classify: classifyOwlnetWind,
+  },
+];
+
+const owlnetState = {
+  siteId: null,
+  rangeHours: 24,
+  refreshTimer: null,
+  sinceTimer: null,
+  latestUpdate: null,
+  requestId: 0,
+};
+
+els.owlnetRange.addEventListener("click", (event) => {
+  const btn = event.target.closest("[data-hours]");
+  if (!btn) return;
+  const hours = Number(btn.dataset.hours);
+  if (!hours || hours === owlnetState.rangeHours) return;
+  owlnetState.rangeHours = hours;
+  els.owlnetRange.querySelectorAll("[data-hours]").forEach((el) => {
+    el.classList.toggle("active", el === btn);
+  });
+  const site = state.sites.find((s) => s.id === owlnetState.siteId);
+  if (site) fetchOwlnet(site);
+});
+
+function classifyOwlnetTemp(_value, flag) {
+  return flag === "N" ? "bad" : "";
+}
+
+function classifyOwlnetHumidity(value, flag) {
+  if (flag === "N") return "bad";
+  if (value == null) return "";
+  if (value <= 70) return "good";
+  if (value <= 90) return "mid";
+  return "bad";
+}
+
+function classifyOwlnetCloud(value, flag) {
+  if (flag === "N") return "bad";
+  if (value == null) return "";
+  // Cloudhood IR : plus négatif = ciel plus clair.
+  if (value <= -15) return "good";
+  if (value <= -5) return "mid";
+  return "bad";
+}
+
+function classifyOwlnetWind(value, flag) {
+  if (flag === "N") return "bad";
+  if (value == null) return "";
+  if (value <= 4) return "good";
+  if (value <= 8) return "mid";
+  return "bad";
+}
+
+function loadOwlnet(site) {
+  clearOwlnetTimers();
+  owlnetState.siteId = site.id;
+  owlnetState.latestUpdate = null;
+  owlnetState.requestId += 1;
+
+  const cfg = site.owlnet;
+  if (!cfg || cfg.obs_id == null) {
+    return;
+  }
+
+  els.owlnetUpdated.textContent = "";
+  els.owlnetBody.classList.add("hidden");
+  els.owlnetStatus.textContent = "Chargement des mesures OWLNET…";
+  els.owlnetStatus.classList.remove("hidden");
+  if (cfg.source_url && els.owlnetSourceLink) {
+    els.owlnetSourceLink.href = cfg.source_url;
+  }
+
+  fetchOwlnet(site);
+  const refreshSeconds = Number(cfg.refresh_seconds) || 60;
+  owlnetState.refreshTimer = setInterval(() => {
+    if (state.activeSiteId === site.id) fetchOwlnet(site);
+  }, refreshSeconds * 1000);
+  owlnetState.sinceTimer = setInterval(updateOwlnetSince, 1000);
+}
+
+function clearOwlnetTimers() {
+  if (owlnetState.refreshTimer) {
+    clearInterval(owlnetState.refreshTimer);
+    owlnetState.refreshTimer = null;
+  }
+  if (owlnetState.sinceTimer) {
+    clearInterval(owlnetState.sinceTimer);
+    owlnetState.sinceTimer = null;
+  }
+}
+
+function formatOwlnetStamp(date) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return (
+    `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}` +
+    `${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}`
+  );
+}
+
+function parseOwlnetUtc(dateTimeStr) {
+  if (!dateTimeStr) return null;
+  const normalized = String(dateTimeStr).trim().replace(" ", "T");
+  const parsed = Date.parse(`${normalized}Z`);
+  return Number.isNaN(parsed) ? null : new Date(parsed);
+}
+
+function parseOwlnetPoint(entry) {
+  if (!Array.isArray(entry) || entry.length < 1) {
+    return { value: null, flag: "O" };
+  }
+  const raw = entry[0];
+  const flag = entry[1] === "N" ? "N" : "O";
+  if (raw == null || raw === "N/A" || raw === "") {
+    return { value: null, flag };
+  }
+  const value = Number(raw);
+  return { value: Number.isFinite(value) ? value : null, flag };
+}
+
+async function fetchOwlnet(site) {
+  const cfg = site.owlnet;
+  if (!cfg || cfg.obs_id == null) return;
+  if (state.activeSiteId !== site.id) return;
+
+  const requestId = ++owlnetState.requestId;
+  const now = new Date();
+  const min = new Date(now.getTime() - owlnetState.rangeHours * 3600 * 1000);
+  const params = new URLSearchParams({
+    obs_id: String(cfg.obs_id),
+    now: formatOwlnetStamp(now),
+    min: formatOwlnetStamp(min),
+  });
+  const url = `owlnet/skyw/get_weather_data?${params.toString()}`;
+
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) {
+      throw new Error(
+        res.status === 404
+          ? "proxy Nginx OWLNET introuvable (lancez le site via Docker)"
+          : `HTTP ${res.status}`
+      );
+    }
+    const data = await res.json();
+    if (requestId !== owlnetState.requestId || state.activeSiteId !== site.id) {
+      return;
+    }
+    if (!data || data.result === false || !Array.isArray(data.time_list)) {
+      throw new Error("réponse OWLNET invalide");
+    }
+    renderOwlnet(data, site);
+    els.owlnetStatus.classList.add("hidden");
+    els.owlnetBody.classList.remove("hidden");
+  } catch (err) {
+    if (requestId !== owlnetState.requestId || state.activeSiteId !== site.id) {
+      return;
+    }
+    els.owlnetBody.classList.add("hidden");
+    els.owlnetStatus.classList.remove("hidden");
+    els.owlnetStatus.textContent = `Erreur de chargement OWLNET : ${String(
+      err.message || err
+    )}`;
+    els.owlnetUpdated.textContent = "";
+    owlnetState.latestUpdate = null;
+  }
+}
+
+function renderOwlnet(data, site) {
+  const times = data.time_list.map(parseOwlnetUtc);
+  const series = OWLNET_METRICS.map((metric) => {
+    const raw = data[metric.list] || [];
+    const points = raw.map(parseOwlnetPoint);
+    return {
+      ...metric,
+      values: points.map((p) => p.value),
+      flags: points.map((p) => p.flag),
+    };
+  });
+
+  const latest = series.map((metric) => {
+    for (let i = metric.values.length - 1; i >= 0; i--) {
+      if (metric.values[i] != null) {
+        return { value: metric.values[i], flag: metric.flags[i] };
+      }
+    }
+    return { value: null, flag: "O" };
+  });
+
+  els.owlnetCurrent.innerHTML = OWLNET_METRICS.map((metric, i) => {
+    const { value, flag } = latest[i];
+    const cls = metric.classify(value, flag);
+    const text =
+      value == null ? "—" : value.toFixed(metric.decimals);
+    const unit = value == null || !metric.unit
+      ? ""
+      : `<span class="owlnet-metric-unit">${escapeHtml(metric.unit)}</span>`;
+    return `
+      <div class="owlnet-metric">
+        <span class="owlnet-metric-label">${escapeHtml(metric.label)}</span>
+        <span class="owlnet-metric-value ${cls}">${text}${unit}</span>
+      </div>
+    `;
+  }).join("");
+
+  const latestUpdate =
+    parseOwlnetUtc(
+      data.latest_update_date_time
+        ? `${data.latest_update_date_time.date} ${data.latest_update_date_time.time}`
+        : null
+    ) || times.filter(Boolean).at(-1) || null;
+  owlnetState.latestUpdate = latestUpdate;
+  updateOwlnetSince();
+
+  renderOwlnetCharts(times, series, site);
+}
+
+function updateOwlnetSince() {
+  if (!owlnetState.latestUpdate) return;
+  const ageMs = Date.now() - owlnetState.latestUpdate.getTime();
+  const age = formatDuration(Math.max(0, ageMs));
+  const stamp = formatOwlnetDisplayTime(
+    owlnetState.latestUpdate,
+    currentOwlnetTimezone()
+  );
+  els.owlnetUpdated.textContent = `${stamp} · + ${age}`;
+}
+
+function currentOwlnetTimezone() {
+  const site = state.sites.find((s) => s.id === owlnetState.siteId);
+  return site?.timezone || BROWSER_TIMEZONE;
+}
+
+function formatDuration(ms) {
+  const totalSec = Math.floor(ms / 1000);
+  const h = String(Math.floor(totalSec / 3600)).padStart(2, "0");
+  const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, "0");
+  const s = String(totalSec % 60).padStart(2, "0");
+  return `${h}:${m}:${s}`;
+}
+
+function formatOwlnetDisplayTime(date, timeZone) {
+  return date.toLocaleString("fr-FR", {
+    timeZone,
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function downsampleIndices(length, maxPoints) {
+  if (length <= maxPoints) {
+    return Array.from({ length }, (_, i) => i);
+  }
+  const out = [];
+  const step = (length - 1) / (maxPoints - 1);
+  for (let i = 0; i < maxPoints; i++) {
+    out.push(Math.round(i * step));
+  }
+  return out;
+}
+
+function renderOwlnetCharts(times, series, site) {
+  const validPairs = times
+    .map((time, i) => ({ time, i }))
+    .filter((p) => p.time);
+  if (validPairs.length < 2) {
+    els.owlnetCharts.innerHTML = `<p class="status-msg">Pas assez de points pour tracer l'historique.</p>`;
+    return;
+  }
+
+  const maxPoints = owlnetState.rangeHours > 24 ? 520 : 420;
+  const picked = downsampleIndices(validPairs.length, maxPoints).map(
+    (idx) => validPairs[idx]
+  );
+  const chartTimes = picked.map((p) => p.time);
+  const chartSeries = series.map((metric) => ({
+    ...metric,
+    values: picked.map((p) => metric.values[p.i]),
+    flags: picked.map((p) => metric.flags[p.i]),
+  }));
+
+  const width = 860;
+  const padL = 48;
+  const padR = 14;
+  const padT = 10;
+  const padB = 26;
+  const plotH = 92;
+  const gap = 18;
+  const plotW = width - padL - padR;
+  const height = padT + chartSeries.length * plotH + (chartSeries.length - 1) * gap + padB;
+  const xAt = (i) => padL + (i / (chartTimes.length - 1)) * plotW;
+
+  const yTicks = 3;
+  const xTickCount = owlnetState.rangeHours > 24 ? 7 : 8;
+  const xTickIdx = downsampleIndices(chartTimes.length, xTickCount);
+  const timeZone = site.timezone || BROWSER_TIMEZONE;
+
+  let svg = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Historique OWLNET">`;
+  svg += `<rect x="0" y="0" width="${width}" height="${height}" fill="#0e1320"/>`;
+
+  chartSeries.forEach((metric, s) => {
+    const top = padT + s * (plotH + gap);
+    const nums = metric.values.filter((v) => v != null);
+    let yMin = nums.length ? Math.min(...nums) : 0;
+    let yMax = nums.length ? Math.max(...nums) : 1;
+    if (metric.yMin != null) yMin = Math.min(yMin, metric.yMin);
+    if (metric.yMax != null) yMax = Math.max(yMax, metric.yMax);
+    if (yMin === yMax) {
+      yMin -= 1;
+      yMax += 1;
+    }
+    const pad = (yMax - yMin) * 0.12;
+    if (metric.yMin == null) yMin -= pad;
+    if (metric.yMax == null) yMax += pad;
+    const yAt = (v) => top + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
+    const gid = `owlnet-fill-${metric.key}`;
+
+    svg += `<rect x="${padL}" y="${top}" width="${plotW}" height="${plotH}" fill="#12182a"/>`;
+    for (let t = 0; t < yTicks; t++) {
+      const ratio = t / (yTicks - 1);
+      const value = yMax - ratio * (yMax - yMin);
+      const y = top + ratio * plotH;
+      svg += `<line x1="${padL}" y1="${y}" x2="${padL + plotW}" y2="${y}" stroke="#262d42" stroke-width="1"/>`;
+      svg += `<text x="${padL - 6}" y="${y + 3.5}" text-anchor="end" fill="#9aa3bd" font-size="10">${value.toFixed(
+        metric.key === "w" && Math.abs(yMax - yMin) < 4 ? 1 : 0
+      )}</text>`;
+    }
+
+    const segments = [];
+    let current = [];
+    metric.values.forEach((value, i) => {
+      if (value == null) {
+        if (current.length) segments.push(current);
+        current = [];
+        return;
+      }
+      current.push({ i, value });
+    });
+    if (current.length) segments.push(current);
+
+    svg += `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${metric.color}" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="${metric.color}" stop-opacity="0.02"/>
+    </linearGradient></defs>`;
+
+    for (const seg of segments) {
+      if (seg.length === 1) {
+        const p = seg[0];
+        svg += `<circle cx="${xAt(p.i)}" cy="${yAt(p.value)}" r="2.2" fill="${metric.color}"/>`;
+        continue;
+      }
+      const line = seg
+        .map((p, idx) => `${idx === 0 ? "M" : "L"}${xAt(p.i).toFixed(1)},${yAt(p.value).toFixed(1)}`)
+        .join(" ");
+      const area = `${line} L${xAt(seg[seg.length - 1].i).toFixed(1)},${(top + plotH).toFixed(1)} L${xAt(seg[0].i).toFixed(1)},${(top + plotH).toFixed(1)} Z`;
+      svg += `<path d="${area}" fill="url(#${gid})"/>`;
+      svg += `<path d="${line}" fill="none" stroke="${metric.color}" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/>`;
+    }
+
+    const lastIdx = metric.values.findLastIndex((v) => v != null);
+    if (lastIdx >= 0) {
+      svg += `<circle cx="${xAt(lastIdx)}" cy="${yAt(metric.values[lastIdx])}" r="3.4" fill="${metric.color}" stroke="#0e1320" stroke-width="1.5"/>`;
+    }
+
+    svg += `<text x="${padL + 6}" y="${top + 13}" fill="${metric.color}" font-size="11" font-weight="600">${escapeHtml(
+      metric.label
+    )}${metric.unit ? ` (${escapeHtml(metric.unit)})` : ""}</text>`;
+
+    metric._yAt = yAt;
+    metric._top = top;
+  });
+
+  for (const i of xTickIdx) {
+    const x = xAt(i);
+    svg += `<line x1="${x}" y1="${padT}" x2="${x}" y2="${height - padB}" stroke="#262d42" stroke-width="1" stroke-dasharray="2 4"/>`;
+    const label = chartTimes[i].toLocaleString("fr-FR", {
+      timeZone,
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    svg += `<text x="${x}" y="${height - 8}" text-anchor="middle" fill="#9aa3bd" font-size="10">${label}</text>`;
+  }
+
+  svg += `<line class="owlnet-hover-line" x1="0" y1="${padT}" x2="0" y2="${height - padB}" stroke="#7c9cff" stroke-width="1" opacity="0"/>`;
+  svg += `</svg><div class="owlnet-tooltip" hidden></div>`;
+  els.owlnetCharts.innerHTML = svg;
+
+  bindOwlnetChartHover(chartTimes, chartSeries, {
+    width,
+    padL,
+    plotW,
+    timeZone,
+  });
+}
+
+function bindOwlnetChartHover(times, series, geom) {
+  const svg = els.owlnetCharts.querySelector("svg");
+  const tooltip = els.owlnetCharts.querySelector(".owlnet-tooltip");
+  const hoverLine = els.owlnetCharts.querySelector(".owlnet-hover-line");
+  if (!svg || !tooltip || !hoverLine) return;
+
+  const nearestIndex = (clientX) => {
+    const rect = svg.getBoundingClientRect();
+    const xSvg = ((clientX - rect.left) / rect.width) * geom.width;
+    const ratio = (xSvg - geom.padL) / geom.plotW;
+    return Math.max(0, Math.min(times.length - 1, Math.round(ratio * (times.length - 1))));
+  };
+
+  const hide = () => {
+    tooltip.hidden = true;
+    hoverLine.setAttribute("opacity", "0");
+  };
+
+  const show = (event) => {
+    const i = nearestIndex(event.clientX);
+    const x = geom.padL + (i / (times.length - 1)) * geom.plotW;
+    hoverLine.setAttribute("x1", x);
+    hoverLine.setAttribute("x2", x);
+    hoverLine.setAttribute("opacity", "0.7");
+
+    const rows = series
+      .map((metric) => {
+        const value = metric.values[i];
+        const text = value == null ? "—" : `${value.toFixed(metric.decimals)}${metric.unit ? ` ${metric.unit}` : ""}`;
+        return `<div class="owlnet-tooltip-row"><span style="color:${metric.color}">${escapeHtml(
+          metric.label
+        )}</span><span>${escapeHtml(text)}</span></div>`;
+      })
+      .join("");
+    tooltip.innerHTML = `<div class="owlnet-tooltip-time">${escapeHtml(
+      formatOwlnetDisplayTime(times[i], geom.timeZone)
+    )}</div>${rows}`;
+    tooltip.hidden = false;
+
+    const wrap = els.owlnetCharts.getBoundingClientRect();
+    const left = event.clientX - wrap.left + 14;
+    const top = event.clientY - wrap.top + 14;
+    const maxLeft = wrap.width - tooltip.offsetWidth - 8;
+    const maxTop = wrap.height - tooltip.offsetHeight - 8;
+    tooltip.style.left = `${Math.max(8, Math.min(left, maxLeft))}px`;
+    tooltip.style.top = `${Math.max(8, Math.min(top, maxTop))}px`;
+  };
+
+  svg.addEventListener("mousemove", show);
+  svg.addEventListener("mouseleave", hide);
+}
 
 // Un site peut définir "camera"/"instrument" (objet unique) ou
 // "cameras"/"instruments" (liste, affichée sous forme d'onglets si plus d'un
@@ -339,6 +838,72 @@ function getInstruments(site) {
   if (Array.isArray(site.instruments)) return site.instruments;
   if (site.instrument) return [site.instrument];
   return [];
+}
+
+function hasOwlnet(site) {
+  return !!(site.owlnet && site.owlnet.obs_id != null);
+}
+
+function getInstrumentItems(site) {
+  const items = getInstruments(site);
+  if (hasOwlnet(site)) {
+    return [{ name: "OWLNET", type: "owlnet" }, ...items];
+  }
+  return items;
+}
+
+function setOwlnetTabVisible(visible) {
+  els.owlnetSection.classList.toggle("hidden", !visible);
+  els.owlnetToolbar.classList.toggle("hidden", !visible);
+  els.instrumentContainer.classList.toggle("hidden", visible);
+}
+
+function renderInstrumentPanel(site, activeIndex = 0) {
+  const items = getInstrumentItems(site);
+  if (items.length === 0) {
+    els.instrumentsSection.classList.add("hidden");
+    instrumentPanel.clearRefreshInterval();
+    els.instrumentTabs.innerHTML = "";
+    setOwlnetTabVisible(false);
+    els.instrumentContainer.classList.add("hidden");
+    return;
+  }
+
+  els.instrumentsSection.classList.remove("hidden");
+
+  if (!hasOwlnet(site)) {
+    setOwlnetTabVisible(false);
+    els.instrumentContainer.classList.remove("hidden");
+    instrumentPanel.render(items, site, "Instrument", activeIndex);
+    return;
+  }
+
+  els.instrumentTabs.innerHTML = "";
+  if (items.length > 1) {
+    els.instrumentTabs.classList.remove("hidden");
+    items.forEach((item, i) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "camera-tab" + (i === activeIndex ? " active" : "");
+      btn.textContent = item.name || `Instrument ${i + 1}`;
+      btn.addEventListener("click", () => renderInstrumentPanel(site, i));
+      els.instrumentTabs.appendChild(btn);
+    });
+  } else {
+    els.instrumentTabs.classList.add("hidden");
+  }
+
+  const item = items[activeIndex];
+  if (item.type === "owlnet") {
+    setOwlnetTabVisible(true);
+    instrumentPanel.clearRefreshInterval();
+    els.instrumentContainer.innerHTML = "";
+    return;
+  }
+
+  setOwlnetTabVisible(false);
+  els.instrumentContainer.classList.remove("hidden");
+  instrumentPanel.renderMedia(item, site);
 }
 
 // Fabrique un panneau à onglets (utilisé pour les caméras et les instruments
@@ -432,7 +997,7 @@ function createTabbedMediaPanel(tabsEl, containerEl, emptyMessage) {
     refreshInterval = setInterval(setSrc, refreshSeconds * 1000);
   }
 
-  return { render };
+  return { render, renderMedia, clearRefreshInterval };
 }
 
 const cameraPanel = createTabbedMediaPanel(
